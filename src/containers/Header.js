@@ -6,6 +6,7 @@ import Navbar from "../components/Navbar/index";
 import Menu from "../components/utils/Menu";
 import {RaisedButton} from "material-ui";
 import actions from "../redux/actions/userInfo";
+import {getCookie} from "../client/javascript/cookie";
 
 const style = {
   container: {
@@ -63,7 +64,7 @@ class Header extends Component {
       <div style={style.container}>
         <Navbar />
         {
-          this.props.userInfo.login
+          getCookie('ifUser') === 'true'
           ?
             <div style={style.menu}>
               <Menu logout={() => this.logout()} title={this.props.userInfo.name}></Menu>

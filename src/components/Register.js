@@ -115,7 +115,7 @@ class Register extends Component {
         email: this.state.email,
         nickName: this.state.nickName,
       })
-      .then((response) => {
+      .then(response => {
         context.setState({
           dialogText: response.data
         });
@@ -123,7 +123,7 @@ class Register extends Component {
           dialog: true
         });
       })
-      .catch((error) => {
+      .catch(error => {
         console.log(error);
       });
   };

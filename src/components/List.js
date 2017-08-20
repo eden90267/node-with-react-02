@@ -5,7 +5,7 @@ const List = (props) => {
   return (
     <div>
       {
-        todos.map(i => (
+        todos.map(i =>
           <p
             key={i.id}
             onClick={() => props.itemClick(i.id)}
@@ -15,7 +15,7 @@ const List = (props) => {
           >
             {i.text}
           </p>
-        ))
+        )
       }
     </div>
   )

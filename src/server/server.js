@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
 const path = require('path');
 const config = require('../../webpack.config');
 const webpack = require('webpack');
@@ -15,7 +17,9 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 
 const session = require('express-session');
+const {post} = require("../client/javascript/ajax");
 const MongoStore = require('connect-mongo')(session);
+
 app.use(session({
   saveUninitialized: true, // don't create session until something store,
   resave: false, // don't save session if unmodified
@@ -26,6 +30,21 @@ app.use(session({
     url: require('../config').dbURL
   })
 }));
+
+io.on('connection', socket => {
+  console.log('a user connected');
+  socket.on('postArticle', () => {
+    post({
+      host: 'localhost',
+      port: '3001',
+      path: '/getArticle'
+    }, 'hi')
+      .then((data) => {
+        socket.broadcast.emit('updateArticle', JSON.parse(data));
+        socket.emit('updateArticle', JSON.parse(data));
+      });
+  });
+});
 
 api.api(app);
 
@@ -52,35 +71,48 @@ app.get('*', (req, res) => {
 
   let initialState = {
     todos: [{
-      id: 0, completed: false, text: 'initial for demo'
+      id: 0,
+      completed: false,
+      text: 'initial for demo'
     }],
-    userInfo: {}
+    userInfo: {},
+    article: []
   };
 
-  const store = configureStore(initialState);
-  const muiTheme = getMuiTheme({
-    userAgent: req.headers['user-agent']
-  });
-  match({routes, location: req.url}, (error, redirectLocation, renderProps) => {
-    if (error) {
-      res.status(500).send(error.message);
-    } else if (redirectLocation) {
-      res.redirect(302, redirectLocation.pathname + redirectLocation.search);
-    } else if (renderProps) {
-      const content = renderToString(
-        <Provider store={store}>
-          <MuiThemeProvider muiTheme={muiTheme}>
-            <RouterContext {...renderProps} />
-          </MuiThemeProvider>
-        </Provider>
-      );
-      let state = store.getState();
-      let page = renderFullPage(content, state);
-      return res.status(200).send(page);
-    } else {
-      res.status(404).send('Not Found');
-    }
-  });
+  // 如在Server fetch時用get 會因為在app.get('*')內，造成socket hang up
+  post({
+    host: 'localhost',
+    port: '3001',
+    path: '/getArticle'
+  }, 'hi')
+    .then((data) => {
+      initialState.article = JSON.parse(data);
+
+      const store = configureStore(initialState);
+      const muiTheme = getMuiTheme({
+        userAgent: req.headers['user-agent']
+      });
+      match({routes, location: req.url}, (error, redirectLocation, renderProps) => {
+        if (error) {
+          res.status(500).send(error.message);
+        } else if (redirectLocation) {
+          res.redirect(302, redirectLocation.pathname + redirectLocation.search);
+        } else if (renderProps) {
+          const content = renderToString(
+            <Provider store={store}>
+              <MuiThemeProvider muiTheme={muiTheme}>
+                <RouterContext {...renderProps} />
+              </MuiThemeProvider>
+            </Provider>
+          );
+          let state = store.getState();
+          let page = renderFullPage(content, state);
+          return res.status(200).send(page);
+        } else {
+          res.status(404).send('Not Found');
+        }
+      });
+    });
 
 });
 
@@ -94,6 +126,10 @@ const renderFullPage = (html, preloadedState) => (`
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>React Todo List</title>
   <link rel="stylesheet" type="text/css" href="/css/reset.css">
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io();
+  </script>
 </head>
 <body>
 <div id="app">${html}</div>
@@ -106,9 +142,9 @@ window.__PRELOADED_STATE__ = ${JSON.stringify(preloadedState).replace(/</g, '\\x
 </html>
 `);
 
-var port = 3000;
+var port = 3001;
 
-app.listen(port, function(error) {
+http.listen(port, '127.0.0.1', error => {
   if (error) throw error;
   console.log("Express server listening on port", port);
 });
